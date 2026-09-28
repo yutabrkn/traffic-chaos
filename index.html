@@ -386,178 +386,351 @@ body{
 
 <script>
 
-/* =================================
-   TRAFFIC CHAOS
-   CHUNK 1
-   ================================= */
 
-const player =
-  document.getElementById("player");
-
-const leftButton =
-  document.getElementById("leftButton");
-
-const rightButton =
-  document.getElementById("rightButton");
-
-const startButton =
-  document.getElementById("startButton");
-
-const startScreen =
-  document.getElementById("startScreen");
-
-const scoreText =
-  document.getElementById("score");
-
-const bestText =
-  document.getElementById("best");
-
-const musicButton =
-  document.getElementById("musicButton");
-
-
-/* GAME DATA */
+const player = document.getElementById("player");
+const game = document.getElementById("game");
+const road = document.getElementById("road");
+const startButton = document.getElementById("startButton");
+const startScreen = document.getElementById("startScreen");
+const scoreText = document.getElementById("score");
+const bestText = document.getElementById("best");
+const musicButton = document.getElementById("musicButton");
+const leftButton = document.getElementById("leftButton");
+const rightButton = document.getElementById("rightButton");
 
 let score = 0;
-
-let best =
-  Number(localStorage.getItem(
-    "traffic-chaos-best"
-  )) || 0;
-
+let best = Number(localStorage.getItem("traffic-chaos-best")) || 0;
 let gameRunning = false;
-
 let playerLane = 1;
-
-let speed = 5;
-
-
-/* SHOW BEST SCORE */
+let speed = 300;
+let lastTime = 0;
+let spawnTimer = 0;
+let roadOffset = 0;
+let traffic = [];
+let roadLines = [];
+let animationId = null;
+let musicOn = true;
+let audio = null;
+let musicTimer = null;
 
 bestText.textContent = best;
 
+// Create animated road markings
+document.getElementById("line1").remove();
+document.getElementById("line2").remove();
 
-/* LANES */
+for (let i = 0; i < 2; i++) {
+  for (let j = 0; j < 7; j++) {
+    const line = document.createElement("div");
+    line.className = "road-line";
+    line.style.left = i === 0 ? "33.33%" : "66.66%";
+    line.style.top = (j * 140 - 120) + "px";
+    road.appendChild(line);
+    roadLines.push(line);
+  }
+}
 
-function moveLeft(){
+// Player movement
+function updatePlayer() {
+  const positions = [21, 50, 79];
+  player.style.left =
+    `calc(${positions[playerLane]}% - 27.5px)`;
+}
 
-  if(!gameRunning) return;
-
-  if(playerLane > 0){
-
+function moveLeft() {
+  if (gameRunning && playerLane > 0) {
     playerLane--;
-
     updatePlayer();
-
   }
-
 }
 
-
-function moveRight(){
-
-  if(!gameRunning) return;
-
-  if(playerLane < 2){
-
+function moveRight() {
+  if (gameRunning && playerLane < 2) {
     playerLane++;
-
     updatePlayer();
-
   }
-
 }
 
+leftButton.addEventListener("click", moveLeft);
+rightButton.addEventListener("click", moveRight);
 
-function updatePlayer(){
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft" || e.key === "a") moveLeft();
+  if (e.key === "ArrowRight" || e.key === "d") moveRight();
+});
+      
+   
+// Spawn incoming traffic and barriers
+function spawnTraffic() {
+  const lane = Math.floor(Math.random() * 3);
+  const isBarrier = Math.random() < 0.25;
 
-  const positions = [
-    21,
-    50,
-    79
+  const obstacle = document.createElement("div");
+  obstacle.className = isBarrier
+    ? "traffic-barrier"
+    : "traffic-car";
+
+  const colors = [
+    "#168cff", "#ffd12e", "#a855f7",
+    "#16c784", "#f97316"
+  ];
+  const color = colors[
+    Math.floor(Math.random() * colors.length)
   ];
 
-  player.style.left =
-    "calc(" +
-    positions[playerLane] +
-    "% - 27.5px)";
+  obstacle.style.cssText = `
+    position:absolute;
+    width:${isBarrier ? 58 : 52}px;
+    height:${isBarrier ? 45 : 88}px;
+    top:-110px;
+    left:calc(${[21, 50, 79][lane]}% - ${isBarrier ? 29 : 26}px);
+    z-index:8;
+    border-radius:${isBarrier ? "8px" : "12px"};
+    background:${isBarrier
+      ? "repeating-linear-gradient(135deg,#ffdf35 0 12px,#222 12px 24px)"
+      : `linear-gradient(90deg,#222,${color},#222)`};
+    border:${isBarrier ? "3px solid #fff" : "2px solid #ddd"};
+    box-shadow:0 6px 15px #0009;
+  `;
 
+  if (!isBarrier) {
+    const window = document.createElement("div");
+    window.style.cssText = `
+      position:absolute;
+      top:12px;
+      left:8px;
+      width:32px;
+      height:24px;
+      border-radius:5px;
+      background:linear-gradient(135deg,#d7f5ff,#31536b);
+    `;
+    obstacle.appendChild(window);
+  }
+
+  game.appendChild(obstacle);
+  traffic.push({
+    element: obstacle,
+    lane,
+    y: -110
+  });
 }
 
+// Check collision with player
+function checkCollision(obstacle) {
+  if (obstacle.lane !== playerLane) return false;
 
-/* BUTTONS */
+  const p = player.getBoundingClientRect();
+  const o = obstacle.element.getBoundingClientRect();
 
-leftButton.addEventListener(
-  "click",
-  moveLeft
-);
+  return (
+    p.left + 9 < o.right - 7 &&
+    p.right - 9 > o.left + 7 &&
+    p.top + 12 < o.bottom - 5 &&
+    p.bottom - 8 > o.top + 5
+  );
+}
 
-rightButton.addEventListener(
-  "click",
-  moveRight
-);
+// Game over
+function crash() {
+  gameRunning = false;
+  cancelAnimationFrame(animationId);
+  stopMusic();
 
+  if (Math.floor(score) > best) {
+    best = Math.floor(score);
+    localStorage.setItem("traffic-chaos-best", best);
+    bestText.textContent = best;
+  }
 
-/* KEYBOARD */
+  const gameOver = document.createElement("div");
+  gameOver.id = "gameOver";
+  gameOver.style.cssText = `
+    position:absolute;
+    inset:0;
+    z-index:150;
+    background:#000c;
+    color:white;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+  `;
 
-document.addEventListener(
-  "keydown",
-  function(event){
+  gameOver.innerHTML = `
+    <div style="font-size:58px">💥</div>
+    <h1 style="font-size:38px;margin:12px">CRASH!</h1>
+    <p style="font-size:20px">Score: ${Math.floor(score)}</p>
+    <p style="font-size:16px;margin:8px">Best: ${best}</p>
+    <button id="retryButton" style="
+      margin-top:25px;
+      padding:16px 35px;
+      border:0;
+      border-radius:14px;
+      background:#ff3030;
+      color:white;
+      font-size:20px;
+      font-weight:bold">
+      TRY AGAIN
+    </button>
+  `;
 
-    if(event.key === "ArrowLeft"){
-      moveLeft();
+  game.appendChild(gameOver);
+
+  document.getElementById("retryButton")
+    .addEventListener("click", () => {
+      gameOver.remove();
+      startGame();
+    });
+
+  game.animate(
+    [
+      { transform: "translateX(-8px)" },
+      { transform: "translateX(8px)" },
+      { transform: "translateX(-5px)" },
+      { transform: "translateX(0)" }
+    ],
+    { duration: 250 }
+  );
+}
+    
+// Main game loop
+function gameLoop(time) {
+  if (!gameRunning) return;
+
+  const dt = Math.min((time - lastTime) / 1000, 0.05);
+  lastTime = time;
+
+  // Increase speed as score rises
+  speed = 300 + Math.min(score * 2, 450);
+
+  // Animate road lines
+  roadOffset += speed * dt;
+
+  roadLines.forEach((line, i) => {
+    const y = (i % 7) * 140 - 120 + roadOffset % 140;
+    line.style.top = y + "px";
+  });
+
+  // Spawn traffic
+  spawnTimer += dt;
+  const spawnDelay = Math.max(0.48, 1.05 - score * 0.003);
+
+  if (spawnTimer >= spawnDelay) {
+    spawnTimer = 0;
+    spawnTraffic();
+  }
+
+  // Move obstacles
+  for (let i = traffic.length - 1; i >= 0; i--) {
+    const obstacle = traffic[i];
+    obstacle.y += speed * dt;
+    obstacle.element.style.top = obstacle.y + "px";
+
+    if (checkCollision(obstacle)) {
+      crash();
+      return;
     }
 
-    if(event.key === "ArrowRight"){
-      moveRight();
+    if (obstacle.y > game.clientHeight + 120) {
+      obstacle.element.remove();
+      traffic.splice(i, 1);
     }
-
   }
-);
 
+  // Survival score
+  score += dt * 10;
+  scoreText.textContent = Math.floor(score);
 
-/* START */
+  animationId = requestAnimationFrame(gameLoop);
+}
 
-startButton.addEventListener(
-  "click",
-  function(){
+// Start and restart game
+function startGame() {
+  if (animationId) cancelAnimationFrame(animationId);
 
-    startScreen.classList.add(
-      "hidden"
-    );
+  traffic.forEach(item => item.element.remove());
+  traffic = [];
 
-    gameRunning = true;
+  score = 0;
+  speed = 300;
+  spawnTimer = 0;
+  roadOffset = 0;
+  playerLane = 1;
 
-    score = 0;
+  updatePlayer();
+  scoreText.textContent = "0";
+  startScreen.classList.add("hidden");
 
-    playerLane = 1;
+  const oldGameOver = document.getElementById("gameOver");
+  if (oldGameOver) oldGameOver.remove();
 
-    speed = 5;
+  gameRunning = true;
+  lastTime = performance.now();
 
-    scoreText.textContent = "0";
+  startMusic();
+  animationId = requestAnimationFrame(gameLoop);
+}
 
-    updatePlayer();
+startButton.addEventListener("click", startGame);
 
+// Simple synthesized arcade music
+function startMusic() {
+  if (!musicOn || musicTimer) return;
+
+  try {
+    audio = audio ||
+      new (window.AudioContext || window.webkitAudioContext)();
+
+    audio.resume();
+
+    const notes = [220, 277, 330, 440, 330, 277, 196, 247];
+    let beat = 0;
+
+    musicTimer = setInterval(() => {
+      if (!gameRunning || !musicOn || !audio) return;
+
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+
+      osc.type = beat % 2 ? "square" : "triangle";
+      osc.frequency.value = notes[beat % notes.length];
+
+      gain.gain.setValueAtTime(0.045, audio.currentTime);
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audio.currentTime + 0.16
+      );
+
+      osc.connect(gain);
+      gain.connect(audio.destination);
+      osc.start();
+      osc.stop(audio.currentTime + 0.17);
+
+      beat++;
+    }, 190);
+  } catch (error) {
+    console.log("Audio unavailable", error);
   }
-);
+}
 
+function stopMusic() {
+  if (musicTimer) clearInterval(musicTimer);
+  musicTimer = null;
+}
 
-/* MUSIC BUTTON */
+// Music on/off
+musicButton.addEventListener("click", () => {
+  musicOn = !musicOn;
+  musicButton.textContent = musicOn ? "🔊" : "🔇";
 
-let musicOn = true;
-
-musicButton.addEventListener(
-  "click",
-  function(){
-
-    musicOn = !musicOn;
-
-    musicButton.textContent =
-      musicOn ? "🔊" : "🔇";
-
+  if (musicOn && gameRunning) {
+    startMusic();
+  } else {
+    stopMusic();
   }
-);
-
+});
+          
 </script>
 
 </body>
