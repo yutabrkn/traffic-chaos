@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1.0,
+      maximum-scale=1.0,user-scalable=no">
+
+<meta name="theme-color" content="#050505">
+
+<title>Traffic Chaos</title>
+
+<style>
+
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html,body{
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#050505;
+  font-family:Arial,sans-serif;
+}
+
+body{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+/* GAME */
+
+#game{
+  position:relative;
+  width:100vw;
+  height:100vh;
+  max-width:600px;
+  overflow:hidden;
+  background:#111;
+}
+
+/* ROAD */
+
+#road{
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(
+      90deg,
+      #222 0%,
+      #333 8%,
+      #333 92%,
+      #222 100%
+    );
+}
+
+.road-line{
+  position:absolute;
+  top:-120px;
+  width:7px;
+  height:90px;
+  background:#eee;
+  border-radius:5px;
+  opacity:.85;
+}
+
+#line1{
+  left:33.33%;
+}
+
+#line2{
+  left:66.66%;
+}
+
+/* ROAD EDGES */
+
+.edge{
+  position:absolute;
+  top:0;
+  width:7px;
+  height:100%;
+  background:#f5d742;
+}
+
+#edgeLeft{
+  left:8%;
+}
+
+#edgeRight{
+  right:8%;
+}
+
+/* HUD */
+
+#hud{
+  position:absolute;
+  top:18px;
+  left:0;
+  right:0;
+  z-index:20;
+
+  display:flex;
+  justify-content:space-around;
+  color:white;
+  text-shadow:0 3px 8px #000;
+}
+
+.hudBox{
+  text-align:center;
+}
+
+.hudLabel{
+  font-size:12px;
+  opacity:.7;
+  letter-spacing:2px;
+}
+
+.hudValue{
+  font-size:25px;
+  font-weight:bold;
+}
+
+/* PLAYER */
+
+#player{
+  position:absolute;
+  width:55px;
+  height:100px;
+  bottom:125px;
+  left:calc(50% - 27.5px);
+  z-index:10;
+
+  border-radius:14px 14px 9px 9px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #7b0000,
+      #ff3030,
+      #9b0000
+    );
+
+  box-shadow:
+    0 8px 20px rgba(0,0,0,.7),
+    inset 0 0 10px rgba(255,255,255,.25);
+}
+
+/* CAR WINDOWS */
+
+#player::before{
+  content:"";
+  position:absolute;
+  top:13px;
+  left:9px;
+  width:37px;
+  height:27px;
+  border-radius:7px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #d9f5ff,
+      #23526b
+    );
+}
+
+/* CAR LIGHTS */
+
+#player::after{
+  content:"";
+  position:absolute;
+  bottom:9px;
+  left:8px;
+  width:39px;
+  height:8px;
+
+  border-radius:5px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #ff3333 0 40%,
+      transparent 40% 60%,
+      #ff3333 60%
+    );
+}
+
+/* CONTROLS */
+
+#controls{
+  position:absolute;
+  bottom:22px;
+  left:0;
+  right:0;
+  z-index:30;
+
+  display:flex;
+  justify-content:center;
+  gap:35px;
+}
+
+.control{
+  width:85px;
+  height:65px;
+
+  border:2px solid rgba(255,255,255,.25);
+  border-radius:18px;
+
+  background:rgba(0,0,0,.55);
+  color:white;
+
+  font-size:32px;
+  font-weight:bold;
+
+  box-shadow:0 7px 20px rgba(0,0,0,.5);
+}
+
+.control:active{
+  transform:scale(.92);
+  background:rgba(255,255,255,.18);
+}
+
+/* START SCREEN */
+
+#startScreen{
+  position:absolute;
+  inset:0;
+  z-index:100;
+
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+
+  color:white;
+
+  background:
+    radial-gradient(
+      circle at center,
+      #293044,
+      #050505 70%
+    );
+}
+
+#title{
+  font-size:46px;
+  font-weight:900;
+  letter-spacing:2px;
+
+  text-align:center;
+
+  text-shadow:
+    0 5px 0 #9b0000,
+    0 10px 25px #000;
+}
+
+#subtitle{
+  margin-top:10px;
+  color:#ddd;
+  font-size:15px;
+  letter-spacing:3px;
+}
+
+#startButton{
+  margin-top:40px;
+
+  padding:17px 45px;
+
+  border:0;
+  border-radius:15px;
+
+  background:#ff3030;
+  color:white;
+
+  font-size:20px;
+  font-weight:bold;
+
+  box-shadow:
+    0 7px 0 #970000,
+    0 12px 30px #000;
+}
+
+#startButton:active{
+  transform:translateY(5px);
+  box-shadow:
+    0 2px 0 #970000;
+}
+
+/* MUSIC BUTTON */
+
+#musicButton{
+  position:absolute;
+  top:18px;
+  right:15px;
+  z-index:110;
+
+  width:43px;
+  height:43px;
+
+  border:0;
+  border-radius:50%;
+
+  background:rgba(0,0,0,.55);
+  color:white;
+
+  font-size:20px;
+}
+
+/* HIDE */
+
+.hidden{
+  display:none !important;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="game">
+
+  <div id="road">
+
+    <div class="edge" id="edgeLeft"></div>
+    <div class="edge" id="edgeRight"></div>
+
+    <div class="road-line" id="line1"></div>
+    <div class="road-line" id="line2"></div>
+
+  </div>
+
+  <div id="hud">
+
+    <div class="hudBox">
+      <div class="hudLabel">SCORE</div>
+      <div class="hudValue" id="score">0</div>
+    </div>
+
+    <div class="hudBox">
+      <div class="hudLabel">BEST</div>
+      <div class="hudValue" id="best">0</div>
+    </div>
+
+  </div>
+
+  <button id="musicButton">🔊</button>
+
+  <div id="player"></div>
+
+  <div id="controls">
+
+    <button class="control" id="leftButton">⬅</button>
+
+    <button class="control" id="rightButton">➡</button>
+
+  </div>
+
+  <div id="startScreen">
+
+    <div id="title">
+      TRAFFIC<br>CHAOS
+    </div>
+
+    <div id="subtitle">
+      DODGE • SURVIVE • GO FASTER
+    </div>
+
+    <button id="startButton">
+      START GAME
+    </button>
+
+  </div>
+
+</div>
+
+<script>
+
+/* =================================
+   TRAFFIC CHAOS
+   CHUNK 1
+   ================================= */
+
+const player =
+  document.getElementById("player");
+
+const leftButton =
+  document.getElementById("leftButton");
+
+const rightButton =
+  document.getElementById("rightButton");
+
+const startButton =
+  document.getElementById("startButton");
+
+const startScreen =
+  document.getElementById("startScreen");
+
+const scoreText =
+  document.getElementById("score");
+
+const bestText =
+  document.getElementById("best");
+
+const musicButton =
+  document.getElementById("musicButton");
+
+
+/* GAME DATA */
+
+let score = 0;
+
+let best =
+  Number(localStorage.getItem(
+    "traffic-chaos-best"
+  )) || 0;
+
+let gameRunning = false;
+
+let playerLane = 1;
+
+let speed = 5;
+
+
+/* SHOW BEST SCORE */
+
+bestText.textContent = best;
+
+
+/* LANES */
+
+function moveLeft(){
+
+  if(!gameRunning) return;
+
+  if(playerLane > 0){
+
+    playerLane--;
+
+    updatePlayer();
+
+  }
+
+}
+
+
+function moveRight(){
+
+  if(!gameRunning) return;
+
+  if(playerLane < 2){
+
+    playerLane++;
+
+    updatePlayer();
+
+  }
+
+}
+
+
+function updatePlayer(){
+
+  const positions = [
+    21,
+    50,
+    79
+  ];
+
+  player.style.left =
+    "calc(" +
+    positions[playerLane] +
+    "% - 27.5px)";
+
+}
+
+
+/* BUTTONS */
+
+leftButton.addEventListener(
+  "click",
+  moveLeft
+);
+
+rightButton.addEventListener(
+  "click",
+  moveRight
+);
+
+
+/* KEYBOARD */
+
+document.addEventListener(
+  "keydown",
+  function(event){
+
+    if(event.key === "ArrowLeft"){
+      moveLeft();
+    }
+
+    if(event.key === "ArrowRight"){
+      moveRight();
+    }
+
+  }
+);
+
+
+/* START */
+
+startButton.addEventListener(
+  "click",
+  function(){
+
+    startScreen.classList.add(
+      "hidden"
+    );
+
+    gameRunning = true;
+
+    score = 0;
+
+    playerLane = 1;
+
+    speed = 5;
+
+    scoreText.textContent = "0";
+
+    updatePlayer();
+
+  }
+);
+
+
+/* MUSIC BUTTON */
+
+let musicOn = true;
+
+musicButton.addEventListener(
+  "click",
+  function(){
+
+    musicOn = !musicOn;
+
+    musicButton.textContent =
+      musicOn ? "🔊" : "🔇";
+
+  }
+);
+
+</script>
+
+</body>
+</html>
