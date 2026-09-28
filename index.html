@@ -194,35 +194,41 @@ body{
 
 #controls{
   position:absolute;
-  bottom:22px;
+  bottom:45px;
   left:0;
   right:0;
   z-index:30;
 
   display:flex;
   justify-content:center;
-  gap:35px;
+  gap:55px;
 }
 
 .control{
-  width:85px;
-  height:65px;
+  width:110px;
+  height:75px;
 
-  border:2px solid rgba(255,255,255,.25);
-  border-radius:18px;
+  border:2px solid rgba(255,255,255,.3);
+  border-radius:20px;
 
-  background:rgba(0,0,0,.55);
+  background:rgba(0,0,0,.65);
   color:white;
 
-  font-size:32px;
+  font-size:38px;
   font-weight:bold;
 
-  box-shadow:0 7px 20px rgba(0,0,0,.5);
-}
+  box-shadow:0 8px 20px rgba(0,0,0,.55);
 
+ touch-action: manipulation;
+      transition:
+      transform  .08s ease,
+      background .08s ease;
+      }
 .control:active{
-  transform:scale(.92);
-  background:rgba(255,255,255,.18);
+  transform:scale(.90);
+  background:rgba(255,255,255,.20);
+      box-shadow:0 3px 10px rgba(0,0,0,.6);
+      
 }
 
 /* START SCREEN */
